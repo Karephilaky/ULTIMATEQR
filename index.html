@@ -48,8 +48,8 @@
   <button onclick="resetScanner()">🧹 LIMPIAR</button>
 
   <script>
-    const SUPABASE_URL = "https://sedpvwgqztoxtxemawmn.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlZHB2d2dxenRveHR4ZW1hd25tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0Njk4ODAsImV4cCI6MjA2OTA0NTg4MH0.JwZPBgjqutCTn4vwNVvCinQkgCRkoIeEJKdG_yWajSQ";
+    const SUPABASE_URL = "https://obagqbwnoewpvbzegjyy.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9iYWdxYndub2V3cHZiemVnanl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0Nzk5MjIsImV4cCI6MjA2OTA1NTkyMn0.Vxx3WnM_1bu5ZL30n96HX09w2l3SCfLUpfOeyGmzKR8";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const status = document.getElementById("status");
@@ -58,7 +58,8 @@
     let scanner = null;
 
     function extraerCedula(textoQR) {
-      const cedulaRegex = /(?:C[eé]dula|N[ÚU]MERO IDENTIFICACI[ÓO]N)[:\s]+(\d{10})/i;
+      // Puedes personalizar este regex según el formato de tu QR
+      const cedulaRegex = /(?:C[eé]dula|N[ÚU]MERO IDENTIFICACI[ÓO]N)?[:\s]*([0-9]{10})/i;
       const match = textoQR.match(cedulaRegex);
       return match ? match[1] : null;
     }
