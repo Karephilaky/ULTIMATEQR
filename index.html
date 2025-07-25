@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>🟢 MATRIX QR SCANNER</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
     body {
       background-color: black;
@@ -48,10 +47,9 @@
   <button onclick="resetScanner()">🧹 LIMPIAR</button>
 
   <script>
-    // 🔐 Supabase config
+    // 🚨 Clave de administrador: solo para uso local, eventos o pruebas
     const SUPABASE_URL = "https://sedpvwgqztoxtxemawmn.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlZHB2d2dxenRveHR4ZW1hd25tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0Njk4ODAsImV4cCI6MjA2OTA0NTg4MH0.JwZPBgjqutCTn4vwNVvCinQkgCRkoIeEJKdG_yWajSQ";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlZHB2d2dxenRveHR4ZW1hd25tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzQ2OTg4MCwiZXhwIjoyMDY5MDQ1ODgwfQ.xMvpymPHgvfhrd1Zyioa7niGPo9SdNyN-G0sb0J9JGo";
 
     const status = document.getElementById("status");
     const output = document.getElementById("output");
@@ -70,17 +68,19 @@
 
       if (!cedula) {
         status.textContent = "❌ CÉDULA NO DETECTADA";
-        output.value = "No se pudo extraer el campo de cédula del QR.";
+        output.value = "No se pudo extraer la cédula del QR.";
         return;
       }
 
       try {
-        const { data, error } = await supabase
-          .from("tickets")
-          .select("*")
-          .eq("cedula", cedula);
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tickets?select=*&cedula=eq.${cedula}`, {
+          headers: {
+            apikey: SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SERVICE_ROLE_KEY}`
+          }
+        });
 
-        if (error) throw error;
+        const data = await res.json();
 
         if (!data || data.length === 0) {
           status.textContent = "❌ CÉDULA NO ENCONTRADA";
@@ -98,15 +98,18 @@
 
         const horaIngreso = new Date().toISOString();
 
-        const { error: updateError } = await supabase
-          .from("tickets")
-          .update({
+        await fetch(`${SUPABASE_URL}/rest/v1/tickets?cedula=eq.${cedula}`, {
+          method: "PATCH",
+          headers: {
+            apikey: SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
             "USADO": "Sí",
             "HORA INGRESO": horaIngreso
           })
-          .eq("cedula", cedula);
-
-        if (updateError) throw updateError;
+        });
 
         status.textContent = `✅ ACCESO PERMITIDO: ${usuario["NOMBRES"] || "Sin nombre"}`;
         usuario["HORA INGRESO"] = horaIngreso;
@@ -138,18 +141,30 @@
 
     function startScanner() {
       scanner = new Html5Qrcode("reader");
-      scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        (decodedText) => {
-          if (decodedText !== lastQR) {
-            lastQR = decodedText;
-            validateQR(decodedText);
-          }
-        },
-        () => {}
-      ).catch((err) => {
-        status.textContent = "❌ ERROR INICIANDO ESCÁNER";
+
+      Html5Qrcode.getCameras().then(cameras => {
+        if (cameras && cameras.length > 0) {
+          const cameraId = cameras[0].id;
+          scanner.start(
+            cameraId,
+            { fps: 10, qrbox: 250 },
+            decodedText => {
+              if (decodedText !== lastQR) {
+                lastQR = decodedText;
+                validateQR(decodedText);
+              }
+            },
+            errorMessage => {}
+          ).catch(err => {
+            status.textContent = "❌ ERROR INICIANDO ESCÁNER";
+            output.value = err.toString();
+          });
+        } else {
+          status.textContent = "❌ NO HAY CÁMARAS DISPONIBLES";
+          output.value = "Este dispositivo no tiene cámaras disponibles.";
+        }
+      }).catch(err => {
+        status.textContent = "❌ ERROR ACCEDIENDO A LA CÁMARA";
         output.value = err.toString();
       });
     }
