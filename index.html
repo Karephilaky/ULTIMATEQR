@@ -47,9 +47,7 @@
   <button onclick="resetScanner()">🧹 LIMPIAR</button>
 
   <script>
-    // 🚨 Clave de administrador: solo para uso local, eventos o pruebas
     const SUPABASE_URL = "https://sedpvwgqztoxtxemawmn.supabase.co";
-    const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlZHB2d2dxenRveHR4ZW1hd25tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzQ2OTg4MCwiZXhwIjoyMDY5MDQ1ODgwfQ.xMvpymPHgvfhrd1Zyioa7niGPo9SdNyN-G0sb0J9JGo";
 
     const status = document.getElementById("status");
     const output = document.getElementById("output");
@@ -73,47 +71,30 @@
       }
 
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/tickets?select=*&cedula=eq.${cedula}`, {
+        const res = await fetch("/api/scan", {
+          method: "POST",
           headers: {
-            apikey: SERVICE_ROLE_KEY,
-            Authorization: `Bearer ${SERVICE_ROLE_KEY}`
-          }
-        });
-
-        const data = await res.json();
-
-        if (!data || data.length === 0) {
-          status.textContent = "❌ CÉDULA NO ENCONTRADA";
-          output.value = `La cédula ${cedula} no está registrada.`;
-          return;
-        }
-
-        const usuario = data[0];
-
-        if (usuario["USADO"]?.toLowerCase().trim() === "sí") {
-          status.textContent = `⚠️ YA INGRESÓ: ${usuario["NOMBRES"] || "Sin nombre"}`;
-          output.value = formatData(usuario);
-          return;
-        }
-
-        const horaIngreso = new Date().toISOString();
-
-        await fetch(`${SUPABASE_URL}/rest/v1/tickets?cedula=eq.${cedula}`, {
-          method: "PATCH",
-          headers: {
-            apikey: SERVICE_ROLE_KEY,
-            Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            "USADO": "Sí",
-            "HORA INGRESO": horaIngreso
-          })
+          body: JSON.stringify({ cedula })
         });
 
-        status.textContent = `✅ ACCESO PERMITIDO: ${usuario["NOMBRES"] || "Sin nombre"}`;
-        usuario["HORA INGRESO"] = horaIngreso;
-        output.value = formatData(usuario);
+        const result = await res.json();
+
+        if (result.status === "ya_ingreso") {
+          status.textContent = `⚠️ YA INGRESÓ: ${result.usuario["NOMBRES"] || "Sin nombre"}`;
+          output.value = formatData(result.usuario);
+          return;
+        }
+
+        if (result.status === "ok") {
+          status.textContent = `✅ ACCESO PERMITIDO: ${result.usuario["NOMBRES"] || "Sin nombre"}`;
+          output.value = formatData(result.usuario);
+          return;
+        }
+
+        status.textContent = "❌ CÉDULA NO ENCONTRADA";
+        output.value = result.error || "Cédula no encontrada.";
 
       } catch (err) {
         status.textContent = "❌ ERROR EN VALIDACIÓN";
