@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🟢 MATRIX QR SCANNER</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      background-color: black;
+      color: #00FF00;
+      font-family: Consolas, monospace;
+      text-align: center;
+      padding: 10px;
+    }
+    input, button, textarea {
+      background: black;
+      color: #00FF00;
+      font-family: Consolas;
+      border: 1px solid #00FF00;
+      margin: 5px;
+      padding: 8px;
+    }
+    #reader {
+      margin: auto;
+      width: 300px;
+      max-width: 90vw;
+      border: 2px solid #00FF00;
+    }
+    textarea {
+      width: 90%;
+      height: 180px;
+    }
+    #status {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🟢 MATRIX QR SCANNER</h1>
+
+  <div id="reader"></div>
+  <h2 id="status">🟢 LISTO PARA ESCANEAR</h2>
+
+  <textarea id="output" readonly></textarea><br>
+  <button onclick="resetScanner()">🧹 LIMPIAR</button>
+
+  <script>
+    const SUPABASE_URL = "https://sedpvwgqztoxtxemawmn.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlZHB2d2dxenRveHR4ZW1hd25tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0Njk4ODAsImV4cCI6MjA2OTA0NTg4MH0.JwZPBgjqutCTn4vwNVvCinQkgCRkoIeEJKdG_yWajSQ";
+
+    const status = document.getElementById("status");
+    const output = document.getElementById("output");
+    let lastQR = null;
+    let scanner = null;
+
+    async function validateQR(content) {
+      const qr_id = content.trim();
+      status.textContent = "🔍 VALIDANDO...";
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/tickets?select=*&QR%20ID=eq.${qr_id}`, {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`
+          }
+        });
+
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+          status.textContent = "❌ QR NO REGISTRADO";
+          output.value = "QR ID no encontrado en Supabase";
+          return;
+        }
+
+        const usuario = data[0];
+
+        if (usuario["USADO"]?.trim().toLowerCase() === "sí") {
+          status.textContent = `⚠️ YA INGRESÓ: ${usuario["NOMBRES"]}`;
+          output.value = formatData(usuario);
+          return;
+        }
+
+        // Marcar como usado
+        const horaIngreso = new Date().toISOString();
+        await fetch(`${SUPABASE_URL}/rest/v1/tickets?QR%20ID=eq.${qr_id}`, {
+          method: "PATCH",
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            "USADO": "Sí",
+            "HORA INGRESO": horaIngreso
+          })
+        });
+
+        status.textContent = `✅ ACCESO PERMITIDO: ${usuario["NOMBRES"]}`;
+        usuario["HORA INGRESO"] = horaIngreso;
+        output.value = formatData(usuario);
+
+      } catch (err) {
+        status.textContent = "❌ ERROR EN LA VALIDACIÓN";
+        output.value = err.toString();
+      }
+
+      setTimeout(() => {
+        lastQR = null;
+        status.textContent = "🟢 LISTO PARA ESCANEAR";
+      }, 2000);
+    }
+
+    function formatData(obj) {
+      return Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join("\n");
+    }
+
+    function resetScanner() {
+      lastQR = null;
+      output.value = "";
+      status.textContent = "🟢 LISTO PARA ESCANEAR";
+      if (scanner) {
+        scanner.stop().then(startScanner);
+      }
+    }
+
+    function startScanner() {
+      scanner = new Html5Qrcode("reader");
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => {
+          if (decodedText !== lastQR) {
+            lastQR = decodedText;
+            validateQR(decodedText);
+          }
+        },
+        (errorMessage) => {}
+      ).catch((err) => {
+        status.textContent = "❌ ERROR INICIANDO ESCÁNER";
+        output.value = err.toString();
+      });
+    }
+
+    window.onload = startScanner;
+  </script>
+</body>
+</html>
