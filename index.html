@@ -78,7 +78,7 @@
       const { data, error } = await supabase
         .from("tickets")
         .select("*")
-        .eq("cedula", cedula);
+        .eq("CEDULA", cedula);
 
       if (error) {
         status.textContent = "❌ ERROR EN CONSULTA";
@@ -109,7 +109,7 @@
           USADO: "Sí",
           "HORA INGRESO": horaIngreso
         })
-        .eq("cedula", cedula);
+        .eq("CEDULA", cedula);
 
       if (updateError) {
         status.textContent = "❌ ERROR AL ACTUALIZAR";
