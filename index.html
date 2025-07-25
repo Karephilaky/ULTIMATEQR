@@ -141,34 +141,25 @@
       }
     }
 
-    function startScanner() {
-      scanner = new Html5Qrcode("reader");
-      Html5Qrcode.getCameras().then(cameras => {
-        if (cameras && cameras.length > 0) {
-          const cameraId = cameras[0].id;
-          scanner.start(
-            cameraId,
-            { fps: 10, qrbox: 250 },
-            decodedText => {
-              if (decodedText !== lastQR) {
-                lastQR = decodedText;
-                validateQR(decodedText);
-              }
-            },
-            errorMessage => {}
-          ).catch(err => {
-            status.textContent = "❌ ERROR INICIANDO ESCÁNER";
-            output.value = err.toString();
-          });
-        } else {
-          status.textContent = "❌ NO HAY CÁMARAS DISPONIBLES";
-          output.value = "Este dispositivo no tiene cámaras disponibles.";
-        }
-      }).catch(err => {
-        status.textContent = "❌ ERROR ACCEDIENDO A LA CÁMARA";
-        output.value = err.toString();
-      });
-    }
+ function startScanner() {
+  scanner = new Html5Qrcode("reader");
+  // Usar cámara trasera por defecto
+  scanner.start(
+    { facingMode: "environment" },  // <-- así se fuerza la cámara de atrás
+    { fps: 10, qrbox: 250 },
+    decodedText => {
+      if (decodedText !== lastQR) {
+        lastQR = decodedText;
+        validateQR(decodedText);
+      }
+    },
+    errorMessage => {}
+  ).catch(err => {
+    status.textContent = "❌ ERROR INICIANDO ESCÁNER";
+    output.value = err.toString();
+  });
+}
+
 
     window.onload = startScanner;
   </script>
